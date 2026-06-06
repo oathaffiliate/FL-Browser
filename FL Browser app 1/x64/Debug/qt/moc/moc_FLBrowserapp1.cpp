@@ -48,7 +48,10 @@ template <> constexpr inline auto FLBrowserapp1::qt_create_metaobjectdata<qt_met
         "QMediaPlayer::PlaybackState",
         "state",
         "onVideoAvailable",
-        "available"
+        "available",
+        "minimizeWindow",
+        "maximizeWindow",
+        "closeWindow"
     };
 
     QtMocHelpers::UintData qt_methods {
@@ -64,6 +67,12 @@ template <> constexpr inline auto FLBrowserapp1::qt_create_metaobjectdata<qt_met
         QtMocHelpers::SlotData<void(bool)>(8, 2, QMC::AccessPrivate, QMetaType::Void, {{
             { QMetaType::Bool, 9 },
         }}),
+        // Slot 'minimizeWindow'
+        QtMocHelpers::SlotData<void()>(10, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'maximizeWindow'
+        QtMocHelpers::SlotData<void()>(11, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'closeWindow'
+        QtMocHelpers::SlotData<void()>(12, 2, QMC::AccessPrivate, QMetaType::Void),
     };
     QtMocHelpers::UintData qt_properties {
     };
@@ -90,6 +99,9 @@ void FLBrowserapp1::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _i
         case 0: _t->clickedFile((*reinterpret_cast<std::add_pointer_t<QModelIndex>>(_a[1]))); break;
         case 1: _t->onPlaybackChanged((*reinterpret_cast<std::add_pointer_t<QMediaPlayer::PlaybackState>>(_a[1]))); break;
         case 2: _t->onVideoAvailable((*reinterpret_cast<std::add_pointer_t<bool>>(_a[1]))); break;
+        case 3: _t->minimizeWindow(); break;
+        case 4: _t->maximizeWindow(); break;
+        case 5: _t->closeWindow(); break;
         default: ;
         }
     }
@@ -114,14 +126,14 @@ int FLBrowserapp1::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 3)
+        if (_id < 6)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 3;
+        _id -= 6;
     }
     if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 3)
+        if (_id < 6)
             *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
-        _id -= 3;
+        _id -= 6;
     }
     return _id;
 }

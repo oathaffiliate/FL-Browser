@@ -2,5 +2,9 @@
   <Configurations>
     <Platform Name="x64" />
   </Configurations>
+  <Folder Name="/Solution Items/">
+    <File Path="FL Browser app 1/appicon.ico" />
+    <File Path="resources.qrc" />
+  </Folder>
   <Project Path="FL Browser app 1/FL Browser app 1.vcxproj" Id="b0223535-8ec7-477a-8a79-c54b7b9eec8b" />
 </Solution>
