@@ -5,16 +5,6 @@ preview with a live waveform, and click sounds into your timeline. ( just a file
 
 ---
 
-## Versions
-
-| Platform | Status | What it is |
-|----------|--------|------------|
-| **Premiere Pro** (`premiere/`) | Done | A panel inside Premiere |
-| **Desktop** (`desktop/`) | In progress | The og app. |
-| **DaVinci Resolve** | Planned | Same idea, for Resolve, (when i have the specs 2 run it) |
-
----
-
 ## Install — Premiere Pro panel
 
 **Easy install (no extra tools):**
@@ -28,6 +18,18 @@ preview with a live waveform, and click sounds into your timeline. ( just a file
 4. Open Premiere → **Window → Extensions → FL Browser**.
 
 To remove it later: double-click **`Uninstall FL Browser.bat`** from the same folder.
+---
+
+## Versions
+
+| Platform | Status | What it is |
+|----------|--------|------------|
+| **Premiere Pro** (`premiere/`) | Done | A panel inside Premiere |
+| **Desktop** (`desktop/`) | In progress | The og app. |
+| **DaVinci Resolve** | Planned | Same idea, for Resolve, (when i have the specs 2 run it) |
+
+
+---
 
 ### Using it
 - Click **+** to add a folder of sounds. Folders nest; click a folder to expand.
