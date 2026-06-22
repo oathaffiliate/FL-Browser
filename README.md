@@ -1,9 +1,7 @@
 # FL Browser
 
-A fast sample browser for music producers — point it at your sound folders, click to
-preview with a live waveform, and drop sounds straight onto your timeline.
-
-Built by **ōth**. #takeyours
+A fast sample browser for music producers, and editors, point it at your sound folders, click to
+preview with a live waveform, and click sounds into your timeline. ( just a filenavigator fr)
 
 ---
 
@@ -11,9 +9,9 @@ Built by **ōth**. #takeyours
 
 | Platform | Status | What it is |
 |----------|--------|------------|
-| **Premiere Pro** (`premiere/`) | ✅ Working | A panel inside Premiere — browse folders, preview sounds, double-click to drop on the timeline. |
-| **Desktop** (`desktop/`) | 🚧 In progress | The original standalone C++ / Qt app. |
-| **DaVinci Resolve** | 🗺️ Planned | Same idea, for Resolve. |
+| **Premiere Pro** (`premiere/`) | Done | A panel inside Premiere |
+| **Desktop** (`desktop/`) | In progress | The og app. |
+| **DaVinci Resolve** | Planned | Same idea, for Resolve, (when i have the specs 2 run it) |
 
 ---
 
@@ -30,8 +28,8 @@ You need the panel as a signed `.zxp` (grab it from
 
 ### Using it
 - Click **+** to add a folder of sounds. Folders nest; click a folder to expand.
-- **Click** a sound to preview it (waveform shows loudness + frequency color).
-- **Double-click** a sound to drop it on the timeline at the playhead.
+- Click a sound to preview it (waveform shows loudness + frequency ranges through color).
+- Double-click a sound to drop it on the timeline at the playhead.
 - **★** a sound to favorite it.
 
 ---
@@ -44,4 +42,4 @@ during development, copy `premiere/` into
 
 ---
 
-*© ōth — Instagram / YouTube / TikTok / X: [@oathsdomain](https://instagram.com/oathsdomain)*
+Built by **ōth**. #takeyours 
