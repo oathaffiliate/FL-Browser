@@ -17,14 +17,17 @@ preview with a live waveform, and click sounds into your timeline. ( just a file
 
 ## Install — Premiere Pro panel
 
-You need the panel as a signed `.zxp` (grab it from
-[Releases](https://github.com/oathaffiliate/FL-Browser/releases)), then:
+**Easy install (no extra tools):**
 
-1. Download a free installer: **[ZXP Installer](https://aescripts.com/learn/zxp-installer/)**
-   (or Anastasiy's ZXP Installer).
-2. Drag **`com.oath.flbrowser.zxp`** onto it.
-3. Restart Premiere Pro.
-4. Open it: **Window → Extensions → FL Browser**.
+1. Download **`FL-Browser-Installer.zip`** from
+   [Releases](https://github.com/oathaffiliate/FL-Browser/releases).
+2. Unzip it (right-click → Extract All).
+3. Make sure Premiere is closed, then double-click **`Install FL Browser.bat`**.
+   - If Windows shows "Windows protected your PC", click **More info → Run anyway**
+     (normal for small installers — it only copies the panel onto your computer).
+4. Open Premiere → **Window → Extensions → FL Browser**.
+
+To remove it later: double-click **`Uninstall FL Browser.bat`** from the same folder.
 
 ### Using it
 - Click **+** to add a folder of sounds. Folders nest; click a folder to expand.
