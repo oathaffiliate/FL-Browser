@@ -11,11 +11,12 @@ preview with a live waveform, and click sounds into your timeline. ( just a file
 
 1. Download **`FL-Browser-Installer.zip`** from
    [Releases](https://github.com/oathaffiliate/FL-Browser/releases).
-2. Unzip it (right-click → Extract All).
+2. Unzip it (right-click → Extract All). !**Remember where you extracted it too.**
 3. Make sure Premiere is closed, then double-click **`Install FL Browser.bat`**.
-   - If Windows shows "Windows protected your PC", click **More info → Run anyway**
-     (this happens for smaller installers, to get rid of this its a $200 annual fee, i aint bready like that).
+   - If Windows shows "Windows protected your PC" don't worry its safe, click **More info → Run anyway**
+     (this happens for smaller installers, to get rid of this its a $200 annual fee, i dont got that).
 4. Open Premiere → **Window → Extensions → FL Browser**.
+5. follow me on all plats 👀
 
 To remove it later: double-click **`Uninstall FL Browser.bat`** from the same folder. 
 
