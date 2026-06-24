@@ -34,6 +34,16 @@ function saveFavs() {
     localStorage.setItem("flbrowser.favs", JSON.stringify([...favs]));
 }
 
+/* ---------- remembering which folders were open + scroll spot ---------- */
+let openSet = loadOpen();   // Set of folder paths that were expanded
+function loadOpen() {
+    try { return new Set(JSON.parse(localStorage.getItem("flbrowser.open") || "[]")); }
+    catch (e) { return new Set(); }
+}
+function saveOpen() {
+    localStorage.setItem("flbrowser.open", JSON.stringify([...openSet]));
+}
+
 /* ---------- reading a folder ---------- */
 // returns { folders: [names], files: [names] }, sorted, audio files only
 function readFolder(dir) {
@@ -94,35 +104,42 @@ function makeFolderNode(fullPath, label, isRoot, depth) {
     children.className = "children";
 
     let loaded = false;
+    function openFolder() {
+        children.classList.add("open");
+        twisty.textContent = "▾";
+        if (!loaded) { loaded = true; fillChildren(children, fullPath, depth + 1); }
+    }
+    function closeFolder() {
+        children.classList.remove("open");
+        twisty.textContent = "▸";
+    }
     row.onclick = () => {
-        const open = children.classList.toggle("open");
-        twisty.textContent = open ? "▾" : "▸";
-        if (open && !loaded) {
-            loaded = true;
-            fillChildren(children, fullPath, depth + 1);
-        }
+        if (children.classList.contains("open")) { closeFolder(); openSet.delete(fullPath); }
+        else                                     { openFolder();  openSet.add(fullPath);   }
+        saveOpen();
+        if (node.parentNode) updateDivider(node.parentNode);   // line shows only when a subfolder is open
     };
+
+    // restore: if this folder was open last session, expand it now (cascades to its subfolders)
+    if (openSet.has(fullPath)) openFolder();
 
     node.appendChild(row);
     node.appendChild(children);
     return node;
 }
 
-// scroll the tree so a row reaches the top, over `duration` ms (controls speed)
-function scrollRowToTop(row, duration) {
-    const start  = treeEl.scrollTop;
-    const target = start + (row.getBoundingClientRect().top - treeEl.getBoundingClientRect().top);
-    const dist   = target - start;
-    const t0     = performance.now();
-
-    function step(now) {
-        let t = Math.min(1, (now - t0) / duration);
-        // easeInOutQuad — smooth start and finish
-        t = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-        treeEl.scrollTop = start + dist * t;
-        if ((now - t0) < duration) requestAnimationFrame(step);
+// the divider shows only while at least one direct sub-folder is expanded
+function updateDivider(container) {
+    const div = container.querySelector(":scope > .divider");
+    if (!div) return;
+    let anyOpen = false;
+    for (const node of container.children) {
+        if (node.classList && node.classList.contains("folder-node")) {
+            const ch = node.querySelector(":scope > .children");
+            if (ch && ch.classList.contains("open")) { anyOpen = true; break; }
+        }
     }
-    requestAnimationFrame(step);
+    div.style.display = anyOpen ? "block" : "none";
 }
 
 // fills a folder's children: subfolders (nested) + sound files
@@ -141,6 +158,14 @@ function fillChildren(container, dir, depth) {
     for (const f of folders) {
         container.appendChild(makeFolderNode(path.join(dir, f), f, false, depth));
     }
+    // divider between the sub-folders and this folder's own loose sounds
+    // (only added if both exist; only shown while a sub-folder is expanded)
+    if (folders.length && files.length) {
+        const div = document.createElement("div");
+        div.className = "divider";
+        div.style.display = "none";
+        container.appendChild(div);
+    }
     for (const f of files) {
         container.appendChild(makeFileRow(path.join(dir, f), f));
     }
@@ -152,19 +177,7 @@ function fillChildren(container, dir, depth) {
         container.appendChild(e);
     }
 
-    // "return to top" at the very end of this folder's sound list.
-    // only seen once you've scrolled through this folder; jumps back to its header.
-    if (files.length) {
-        const toTop = document.createElement("div");
-        toTop.className = "toTop";
-        toTop.textContent = "↑ return to top";
-        toTop.onclick = (e) => {
-            e.stopPropagation();
-            const folderRow = container.previousElementSibling;  // this folder's header row
-            if (folderRow) scrollRowToTop(folderRow, 450);       // 450ms — lower = faster
-        };
-        container.appendChild(toTop);
-    }
+    updateDivider(container);   // set initial visibility (handles restored-open folders)
 }
 
 // one sound file row
@@ -196,20 +209,36 @@ function makeFileRow(fullPath, label) {
     name.className = "name file";
     name.textContent = label;
 
+    // "+" appears on hover; click drops the sound on the timeline (never misfires like dbl-click)
+    const add = document.createElement("span");
+    add.className = "addRow";
+    add.textContent = "＋";
+    add.title = "Add to timeline at the playhead";
+    add.onclick = (e) => { e.stopPropagation(); dropAtPlayhead(fullPath, label); };
+
     row.appendChild(star);
     row.appendChild(name);
+    row.appendChild(add);
 
     row.onclick = () => preview(fullPath, label, row);
 
-    // double-click drops the sound onto the timeline at the playhead
-    row.addEventListener("dblclick", () => dropAtPlayhead(fullPath, label));
+    // right-click: our own menu (also kills Premiere's default "view source" menu)
+    row.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        showMenu(e.clientX, e.clientY, [
+            { label: "Show in Explorer", action: () => revealInExplorer(fullPath) },
+            { label: "Delete (Recycle Bin)", danger: true, action: () => recycle(fullPath, row) }
+        ]);
+    });
 
     return row;
 }
 
 /* ---------- preview + waveform ---------- */
 function fileUrl(p) {
-    return encodeURI("file:///" + p.replace(/\\/g, "/"));
+    // encodeURI misses # ? and % — a sound named "track#1.wav" would silently fail to load
+    return encodeURI("file:///" + p.replace(/\\/g, "/"))
+        .replace(/#/g, "%23").replace(/\?/g, "%3F");
 }
 
 let currentLabel = "";
@@ -224,6 +253,7 @@ function preview(fullPath, label, row) {
     document.getElementById("previewWrap").classList.add("shown");
 
     // start audio immediately (no waiting on the waveform)
+    clearTimeout(sixTimer);          // cancel any pending "stop after 6s" from a tap
     audio.src = fileUrl(fullPath);
     audio.currentTime = 0;
     audio.play().catch(() => {});
@@ -265,7 +295,7 @@ function fft(re, im) {
     }
 }
 
-// read the file, decode it, and per slice compute loudness (height) + bass/mid/high color
+// read the file, decode it, and per slice compute loudness (height) + average pitch (color)
 function buildWaveform(fullPath) {
     let buf;
     try { buf = fs.readFileSync(fullPath); }
@@ -298,21 +328,16 @@ function buildWaveform(fullPath) {
             }
             fft(re, im);
 
-            let low = 0, mid = 0, high = 0;
+            // spectral centroid = energy-weighted average frequency of this slice.
+            // we map that single pitch onto the color gradient (see freqToColor).
+            let magSum = 0, freqSum = 0;
             for (let bin = 1; bin < FFT_SIZE >> 1; bin++) {
                 const freq = bin * rate / FFT_SIZE;
                 const mag = Math.sqrt(re[bin] * re[bin] + im[bin] * im[bin]);
-                if (freq < 250)        low  += mag;   // bass  -> red
-                else if (freq < 2500)  mid  += mag;   // mids  -> green
-                else                   high += mag;   // highs -> blue
+                magSum  += mag;
+                freqSum += mag * freq;
             }
-            const total = low + mid + high || 1;
-            out[c] = {
-                peak: peak,
-                r: low  / total,
-                g: mid  / total,
-                b: high / total
-            };
+            out[c] = { peak: peak, freq: magSum ? freqSum / magSum : 0 };
         }
         peaks = out;
         drawWave(progress());
@@ -323,10 +348,61 @@ function progress() {
     return audio.duration ? audio.currentTime / audio.duration : 0;
 }
 
+// how punchy the colors are. 1 = exactly the stops below, higher = more saturated
+// (1.6 ≈ vivid, 2+ ≈ neon). turn this up/down to taste.
+const SATURATION = 2.2;
+
+// frequency -> color, along the gradient from the waveform editor:
+// bass = deep red-violet at the bottom, rising through cream up to teal/blue for highs.
+// each stop is [position 0..1, [r,g,b]]. tweak these to restyle the whole waveform.
+const COLOR_STOPS = [
+    [0.00, [133, 26,  64]],    // ~20 Hz   bass     vibrant red velvet
+    [0.26, [204, 103, 101]],   //          low-mid  red velvet (where bass actually lands)
+    [0.38, [218, 147, 145]],   //          mid      pale pink
+    [0.58, [238, 231, 205]],   //          mid      cream
+    [0.78, [112, 188, 165]],   //          high     teal-green
+    [1.00, [106, 100, 141]]    // ~16 kHz  highs    slate blue-violet
+];
+function freqToColor(freq) {
+    // pitch is perceived logarithmically, so spread the gradient on a log scale
+    const lo = Math.log2(20), hi = Math.log2(16000);
+    let t = (Math.log2(Math.max(20, freq)) - lo) / (hi - lo);
+    t = Math.max(0, Math.min(1, t));
+    // find the two stops t falls between and blend them
+    for (let i = 1; i < COLOR_STOPS.length; i++) {
+        if (t <= COLOR_STOPS[i][0]) {
+            const a = COLOR_STOPS[i - 1], b = COLOR_STOPS[i];
+            const f = (t - a[0]) / (b[0] - a[0]);
+            const r = a[1][0] + (b[1][0] - a[1][0]) * f;
+            const g = a[1][1] + (b[1][1] - a[1][1]) * f;
+            const bl = a[1][2] + (b[1][2] - a[1][2]) * f;
+            return saturate(r, g, bl);
+        }
+    }
+    const last = COLOR_STOPS[COLOR_STOPS.length - 1][1];
+    return saturate(last[0], last[1], last[2]);
+}
+
+// push a color away from its own gray (brightness) by SATURATION, then clamp to 0..255
+function saturate(r, g, b) {
+    const gray = 0.299 * r + 0.587 * g + 0.114 * b;   // perceived brightness
+    return [
+        Math.max(0, Math.min(255, gray + (r - gray) * SATURATION)) | 0,
+        Math.max(0, Math.min(255, gray + (g - gray) * SATURATION)) | 0,
+        Math.max(0, Math.min(255, gray + (b - gray) * SATURATION)) | 0
+    ];
+}
+
+// waveform shape: height grows with width. lower RATIO = taller strip.
+const WAVE_RATIO = 5;
+const WAVE_MIN = 70, WAVE_MAX = 260;
+
 // draw the bars (taller = louder) plus the playhead line
 function drawWave(p) {
-    // keep the canvas pixel-size matched to its on-screen size
-    const w = waveEl.clientWidth, h = waveEl.clientHeight;
+    // height tracks width so the waveform scales as the panel grows (both axes)
+    const w = waveEl.clientWidth;
+    waveEl.style.height = Math.max(WAVE_MIN, Math.min(WAVE_MAX, w / WAVE_RATIO)) + "px";
+    const h = waveEl.clientHeight;
     if (waveEl.width !== w)  waveEl.width = w;
     if (waveEl.height !== h) waveEl.height = h;
 
@@ -338,14 +414,10 @@ function drawWave(p) {
         const bw = w / cols;
         for (let c = 0; c < cols; c++) {
             const s = peaks[c];
-            // boost the colors so they read clearly; lift floor so quiet bins aren't black
-            let r = 40 + s.r * 320;
-            let g = 40 + s.g * 320;
-            let b = 40 + s.b * 320;
-            r = Math.min(255, r); g = Math.min(255, g); b = Math.min(255, b);
+            const col = freqToColor(s.freq);     // map this slice's pitch onto the gradient
             const played = (c / cols) <= p;
             const a = played ? 1 : 0.4;          // dim the part not played yet
-            waveCtx.fillStyle = "rgba(" + (r|0) + "," + (g|0) + "," + (b|0) + "," + a + ")";
+            waveCtx.fillStyle = "rgba(" + col[0] + "," + col[1] + "," + col[2] + "," + a + ")";
             const bh = Math.max(1, s.peak * (h * 0.9));
             waveCtx.fillRect(c * bw, mid - bh / 2, Math.max(1, bw - 0.5), bh);
         }
@@ -369,14 +441,44 @@ audio.addEventListener("ended", () => {
     drawWave(1);
     if (playingRow) playingRow.classList.remove("playing");
 });
-
-// click the waveform to jump the playhead there
-waveEl.addEventListener("click", (e) => {
-    if (!audio.duration) return;
-    const rect = waveEl.getBoundingClientRect();
-    audio.currentTime = ((e.clientX - rect.left) / rect.width) * audio.duration;
-    drawWave(progress());
+// if a file won't load/decode, say so instead of failing silently (#10)
+audio.addEventListener("error", () => {
+    if (audio.src) previewEl.textContent = "⚠ can't play this file";
 });
+
+// waveform: hold to replay for as long as you hold; a quick tap plays 6 seconds
+let sixTimer = null;
+let pressT0  = 0;
+let holding  = false;
+const TAP_MS = 200;      // press shorter than this counts as a "tap"
+const TAP_PLAY = 6000;   // a tap plays this many ms
+
+function replayFromStart() {
+    if (!audio.src) return;
+    clearTimeout(sixTimer);
+    audio.currentTime = 0;
+    audio.play().catch(() => {});
+}
+waveEl.addEventListener("mousedown", () => {
+    holding = true;
+    pressT0 = performance.now();
+    replayFromStart();
+});
+document.addEventListener("mouseup", () => {
+    if (!holding) return;
+    holding = false;
+    const held = performance.now() - pressT0;
+    if (held < TAP_MS) {
+        // tap -> let it run 6 seconds total, then stop
+        clearTimeout(sixTimer);
+        sixTimer = setTimeout(() => audio.pause(), TAP_PLAY - held);
+    } else {
+        audio.pause();   // released after a hold -> stop now
+    }
+});
+
+// keep the waveform sharp when the panel is resized (#1)
+window.addEventListener("resize", () => drawWave(progress()));
 
 /* ---------- drop sound onto the timeline ---------- */
 // run a script inside Premiere itself; returns a promise with the host's reply
@@ -410,13 +512,62 @@ function dropAtPlayhead(fullPath, label) {
     });
 }
 
+/* ---------- right-click menu (Show in Explorer / Delete) ---------- */
+// kill Premiere's built-in right-click menu everywhere (no more "view source" text file)
+document.addEventListener("contextmenu", (e) => e.preventDefault());
+
+let menuEl = null;
+function closeMenu() { if (menuEl) { menuEl.remove(); menuEl = null; } }
+document.addEventListener("click", closeMenu);
+document.addEventListener("scroll", closeMenu, true);
+
+function showMenu(x, y, items) {
+    closeMenu();
+    menuEl = document.createElement("div");
+    menuEl.className = "ctxMenu";
+    for (const it of items) {
+        const mi = document.createElement("div");
+        mi.className = "ctxItem" + (it.danger ? " danger" : "");
+        mi.textContent = it.label;
+        mi.onclick = (ev) => { ev.stopPropagation(); closeMenu(); it.action(); };
+        menuEl.appendChild(mi);
+    }
+    document.body.appendChild(menuEl);
+    // keep it on-screen
+    menuEl.style.left = Math.min(x, window.innerWidth  - menuEl.offsetWidth  - 4) + "px";
+    menuEl.style.top  = Math.min(y, window.innerHeight - menuEl.offsetHeight - 4) + "px";
+}
+
+// open Windows Explorer with the file highlighted
+function revealInExplorer(p) {
+    try { require("child_process").exec('explorer /select,"' + p + '"'); } catch (e) {}
+}
+
+// send the file to the Recycle Bin (recoverable), after a confirm
+function recycle(p, row) {
+    if (!confirm("Move this file to the Recycle Bin?\n\n" + p)) return;
+    const ps = "Add-Type -AssemblyName Microsoft.VisualBasic;" +
+        "[Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile('" +
+        p.replace(/'/g, "''") + "','OnlyErrorDialogs','SendToRecycleBin')";
+    try {
+        require("child_process").execFile(
+            "powershell",
+            ["-NoProfile", "-WindowStyle", "Hidden", "-Command", ps],
+            (err) => {
+                if (err) flash("⚠ couldn't delete");
+                else if (row) row.remove();      // drop it from the list on success
+            }
+        );
+    } catch (e) { flash("⚠ couldn't delete"); }
+}
+
 /* ---------- render whole tree ---------- */
 function render() {
     treeEl.innerHTML = "";
     if (!roots.length) {
         const e = document.createElement("div");
         e.className = "empty";
-        e.innerHTML = "No folders yet.<br>Click <b>+</b> to start.<br>Double click to put into timeline.";
+        e.innerHTML = "No folders yet.<br>Click <b>+</b> to start.<br>Hover a sound and hit ＋ to drop it on the timeline.";
         treeEl.appendChild(e);
         return;
     }
@@ -427,10 +578,18 @@ function render() {
     // hint sits at the end of the list, scrolls with it, seen at the bottom
     const hint = document.createElement("div");
     hint.id = "footer";
-    hint.innerHTML = "Double-click a sound to put it on the timeline" +
+    hint.innerHTML = "Hover a sound and hit ＋ to drop it on the timeline" +
                      "<div class='tagline'>#takeyours</div>";
     treeEl.appendChild(hint);
+
+    // jump back to where the tree was scrolled last session
+    treeEl.scrollTop = +localStorage.getItem("flbrowser.scroll") || 0;
 }
+
+// remember the scroll spot (#8)
+treeEl.addEventListener("scroll", () => {
+    localStorage.setItem("flbrowser.scroll", treeEl.scrollTop);
+});
 
 /* ---------- add folder (native picker) ---------- */
 document.getElementById("addBtn").onclick = () => {
@@ -460,7 +619,9 @@ function applyTheme() {
     try {
         const env = JSON.parse(window.__adobe_cep__.getHostEnvironment());
         const c = env.appSkinInfo.panelBackgroundColor.color;   // 0–255 each
-        document.body.style.background = "rgb(" + (c.red|0) + "," + (c.green|0) + "," + (c.blue|0) + ")";
+        const bg = "rgb(" + (c.red|0) + "," + (c.green|0) + "," + (c.blue|0) + ")";
+        document.body.style.background = bg;
+        document.body.style.setProperty("--bg", bg);            // sticky header + footer match this
         const lum = (0.299 * c.red + 0.587 * c.green + 0.114 * c.blue) / 255;
         document.body.classList.toggle("light", lum > 0.5);     // bright theme -> dark text
     } catch (e) {}
